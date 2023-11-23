@@ -91,20 +91,33 @@ function gameTick(boardState: boolean[][]) {
   return newState
 }
 
-function areBoardsEqual(boardA: boolean[][], boardB: boolean[][]): boolean {
+type CompressedBoard = [number, number][]
+
+function compressBoard(boardState: boolean[][]) {
+  const compressedBoard: CompressedBoard = []
+
+  for (let i = 0; i < boardState.length; i++) {
+    for (let j = 0; j < boardState[i].length; j++) {
+      if (boardState[i][j]) {
+        compressedBoard.push([i, j])
+      }
+    }
+  }
+
+  return compressedBoard
+}
+
+function areBoardsEqual(boardA: CompressedBoard, boardB: CompressedBoard): boolean {
   if (boardA.length !== boardB.length) {
     return false
   }
 
   for (let i = 0; i < boardA.length; i++) {
-    if (boardA[i].length !== boardB[i].length) {
-      return false
-    }
+    const a = boardA[i]
+    const b = boardB[i]
 
-    for (let j = 0; j < boardA[i].length; j++) {
-      if (boardA[i][j] !== boardB[i][j]) {
-        return false
-      }
+    if (a[0] !== b[0] || a[1] !== b[1]) {
+      return false
     }
   }
 
@@ -112,7 +125,7 @@ function areBoardsEqual(boardA: boolean[][], boardB: boolean[][]): boolean {
 }
 
 function findFirstStableState(boardState: boolean[][]) {
-  const pastStates: boolean[][][] = []
+  const pastStates: CompressedBoard[] = []
 
   const start = performance.now()
   let newBoardState = boardState
@@ -120,7 +133,9 @@ function findFirstStableState(boardState: boolean[][]) {
   while (true) {
     newBoardState = gameTick(newBoardState)
 
-    const firstStableIndex = pastStates.findIndex(state => areBoardsEqual(state, newBoardState))
+    const compressed = compressBoard(newBoardState)
+
+    const firstStableIndex = pastStates.findIndex(state => areBoardsEqual(state, compressed))
 
     if (firstStableIndex !== -1) {
       return {
@@ -129,7 +144,7 @@ function findFirstStableState(boardState: boolean[][]) {
       }
     }
 
-    pastStates.push(newBoardState)
+    pastStates.push(compressed)
   }
 }
 
