@@ -1,24 +1,9 @@
 import React from 'react'
-import {randomizeBoard} from '../_utils/board'
-
-type Size = {
-  width: number
-  height: number
-}
-
-type ContextProps = {
-  boardState: boolean[][]
-  onSizeChanged: (size: Size) => void
-}
-
-const VanillaContext = React.createContext<ContextProps | null>(null)
+import {lazilyLoadInitialBoard} from '../_utils/board'
+import {BoardContainer, Size} from '../_components/BoardContext'
 
 function getInitialBoardState(size: Size) {
-  const boardState = [...new Array(size.height)].map(() => new Array(size.width).fill(false))
-
-  randomizeBoard(boardState)
-
-  return boardState
+  return lazilyLoadInitialBoard([...new Array(size.height)].map(() => new Array(size.width).fill(false)))
 }
 
 function getNewBoardStateAfterResize(boardState: boolean[][], newSize: Size) {
@@ -113,6 +98,11 @@ export function VanillaContainer({children}: Props) {
   const [size, setSize] = React.useState<Size | null>(null)
   const [boardState, setBoardState] = React.useState<boolean[][] | null>(null)
 
+  const lastTick = React.useRef<{time: number; tick: number; avg: number} | null>(null)
+
+  const [timePerGen, setTimePerGen] = React.useState<number>(0)
+  const [genNumber, setGenNumber] = React.useState<number>(0)
+
   // TODO: Build a proper game loop
   // We want to measure the time between ticks
   React.useEffect(() => {
@@ -120,8 +110,34 @@ export function VanillaContainer({children}: Props) {
       setBoardState(state => {
         return gameTick(state ?? [])
       })
+      setGenNumber(i => i + 1)
     }, 1)
   }, [])
+
+  // Calculate the average time per generation
+  React.useEffect(() => {
+    if (boardState == null || boardState.length === 0) {
+      return
+    }
+
+    if (lastTick.current === null) {
+      lastTick.current = {time: performance.now(), tick: 0, avg: 0}
+      return
+    }
+
+    const now = performance.now()
+    const diff = now - lastTick.current.time
+
+    lastTick.current = {
+      time: now,
+      tick: lastTick.current.tick + 1,
+      avg:
+        diff / (lastTick.current.tick + 1) +
+        lastTick.current.avg * (lastTick.current.tick / (lastTick.current.tick + 1)),
+    }
+
+    setTimePerGen(lastTick.current.avg)
+  }, [boardState])
 
   const resetBoardSize = React.useCallback((newSize: Size) => {
     if (newSize.height === 0 || newSize.width === 0) {
@@ -152,19 +168,11 @@ export function VanillaContainer({children}: Props) {
   const contextValue = React.useMemo(() => {
     return {
       boardState: boardState ?? [],
+      timePerGen,
+      genNumber,
       onSizeChanged,
     }
-  }, [boardState, onSizeChanged])
+  }, [boardState, genNumber, onSizeChanged, timePerGen])
 
-  return <VanillaContext.Provider value={contextValue}>{children}</VanillaContext.Provider>
-}
-
-export function useVanillaBoardContext() {
-  const context = React.useContext(VanillaContext)
-
-  if (context === null) {
-    throw new Error('useOnSizeChanged must be used within a VanillaContainer')
-  }
-
-  return context
+  return <BoardContainer value={contextValue}>{children}</BoardContainer>
 }

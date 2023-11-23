@@ -11,12 +11,31 @@ const patterns = {
   },
 }
 
+const getBoardSizeKey = (board: boolean[][], expectedDensity: number) =>
+  `${board.length}x${board[0].length}:${expectedDensity}`
+
+const BOARD_CACHE: Record<string, boolean[][]> = {}
+
+export function lazilyLoadInitialBoard(board: boolean[][], expectedDensity = 0.5) {
+  const key = getBoardSizeKey(board, expectedDensity)
+
+  if (BOARD_CACHE[key] == null) {
+    BOARD_CACHE[key] = randomizeBoard(board, expectedDensity)
+  }
+
+  return BOARD_CACHE[key]
+}
+
 export function randomizeBoard(board: boolean[][], expectedDensity = 0.5) {
+  const newBoard = _.cloneDeep(board)
+
   for (let i = 0; i < board.length; i++) {
-    for (let j = 0; j < board.length; j++) {
-      board[i][j] = Math.random() < expectedDensity
+    for (let j = 0; j < board[0].length; j++) {
+      newBoard[i][j] = Math.random() < expectedDensity
     }
   }
+
+  return newBoard
 }
 
 const PATTERN_SAMPLER = [
