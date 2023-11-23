@@ -91,60 +91,89 @@ function gameTick(boardState: boolean[][]) {
   return newState
 }
 
-type CompressedBoard = [number, number][]
+// JS numbers are 64-bit floats, but get converted to 32-bit signed ints when performing bitwise operations
+// If we don't want to deal with the complication of signed ints, we use the lower 31 bits to keep things positive
+// Another approach would be to use BigInts, but that really hurts performance
+const WORD_SIZE = 31
 
 function compressBoard(boardState: boolean[][]) {
-  const compressedBoard: CompressedBoard = []
+  let binaryBoard = ''
 
-  for (let i = 0; i < boardState.length; i++) {
-    for (let j = 0; j < boardState[i].length; j++) {
+  const height = boardState.length
+  const width = boardState[0].length
+
+  binaryBoard += `${width},${height};`
+
+  let shift = 0
+  let num = 0
+
+  for (let i = 0; i < height; i++) {
+    for (let j = 0; j < width; j++) {
       if (boardState[i][j]) {
-        compressedBoard.push([i, j])
+        // eslint-disable-next-line no-bitwise
+        num |= 1 << shift
+      }
+
+      shift++
+
+      if (shift === WORD_SIZE) {
+        // Convert the number to hex and pad it with 0s to make it 8 characters long, so we can reconstruct it later
+        binaryBoard += num.toString(16).padStart(8, '0')
+
+        shift = 0
+        num = 0
       }
     }
   }
 
-  return compressedBoard
-}
-
-function areBoardsEqual(boardA: CompressedBoard, boardB: CompressedBoard): boolean {
-  if (boardA.length !== boardB.length) {
-    return false
+  if (shift !== 0) {
+    binaryBoard += num.toString(16).padStart(8, '0')
   }
 
-  for (let i = 0; i < boardA.length; i++) {
-    const a = boardA[i]
-    const b = boardB[i]
-
-    if (a[0] !== b[0] || a[1] !== b[1]) {
-      return false
-    }
-  }
-
-  return true
+  return binaryBoard
 }
 
 function findFirstStableState(boardState: boolean[][]) {
-  const pastStates: CompressedBoard[] = []
+  const pastStatesMap: {[board: string]: number} = {}
 
   const start = performance.now()
   let newBoardState = boardState
 
+  let tick = 0
+
+  let timeTicking = 0
+  let timeCompressing = 0
+  let timeComparing = 0
+
   while (true) {
+    // TODO: Improve time ticking if we can
+    const startTicking = performance.now()
     newBoardState = gameTick(newBoardState)
+    timeTicking += performance.now() - startTicking
 
-    const compressed = compressBoard(newBoardState)
+    const startCompressingIntoBytes = performance.now()
+    const bytes = compressBoard(newBoardState)
+    timeCompressing += performance.now() - startCompressingIntoBytes
 
-    const firstStableIndex = pastStates.findIndex(state => areBoardsEqual(state, compressed))
+    const startComparing = performance.now()
+    const firstStableIndex = pastStatesMap[bytes]
+    timeComparing += performance.now() - startComparing
 
-    if (firstStableIndex !== -1) {
+    if (firstStableIndex != null) {
+      console.log({
+        timeCompressingIntoBytes: timeCompressing,
+        timeTicking,
+        timeComparingBytes: timeComparing,
+        tpg: timeTicking / firstStableIndex,
+      })
+
       return {
-        firstStableGen: firstStableIndex + 1,
+        firstStableGen: firstStableIndex,
         stablePerf: performance.now() - start,
       }
     }
 
-    pastStates.push(compressed)
+    pastStatesMap[bytes] = ++tick
   }
 }
 
@@ -163,7 +192,6 @@ export function VanillaContainer({children}: Props) {
   const [firstStableGen, setFirstStableGen] = React.useState<number | null>(null)
   const [stablePerf, setStablePerf] = React.useState<number | null>(null)
 
-  // TODO: Build a proper game loop
   // We want to measure the time between ticks
   React.useEffect(() => {
     setInterval(() => {
