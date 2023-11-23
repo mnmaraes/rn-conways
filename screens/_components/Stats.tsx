@@ -1,20 +1,48 @@
 import React from 'react'
 import {View, Text, StyleSheet} from 'react-native'
 import _ from 'lodash'
+import {formatDuration, intervalToDuration} from 'date-fns'
 import {useBoardContext} from './BoardContext'
 
 export function Stats() {
-  const {boardState, timePerGen, genNumber} = useBoardContext()
+  const {boardState, timePerGen, genNumber, firstStableGen, stablePerf} = useBoardContext()
+
+  const gps = 1000 / timePerGen
 
   return (
     <View style={styles.container}>
       <Stat label="Size" value={`${boardState[0]?.length}x${boardState.length}`} />
-      <Stat label="ms/gen" value={_.round(timePerGen)} />
+      <Stat label="gen/s" value={gps} />
       <Stat label="gen. #" value={genNumber} />
-      {/* <Stat label="gen to stable" value={50} /> */}
-      {/* <Stat label="stable perf" value={50} /> */}
+      <Stat label="gen to stable" value={firstStableGen ?? 'calculating'} />
+      <Stat label="stable perf" value={stablePerf ?? 'calculating'} />
+      <Stat
+        label="Time to Stabilize"
+        value={
+          firstStableGen == null
+            ? 'calculating'
+            : formatDuration(
+                intervalToDuration({
+                  start: 0,
+                  end: Math.round(timePerGen * firstStableGen),
+                }),
+              )
+        }
+      />
     </View>
   )
+}
+
+const formatValue = (value: number) => {
+  if (value > 1000000) {
+    return `${_.round(value / 1000000, 1)}m`
+  }
+
+  if (value > 1000) {
+    return `${_.round(value / 1000, 1)}k`
+  }
+
+  return _.round(value, 1)
 }
 
 type StatProp = Readonly<{
@@ -25,7 +53,7 @@ function Stat({label, value}: StatProp) {
   return (
     <View style={styles.statsContainer}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
+      <Text style={styles.value}>{typeof value === 'number' ? formatValue(value) : value}</Text>
     </View>
   )
 }

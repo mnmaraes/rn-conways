@@ -9,6 +9,8 @@ export type ContextProps = {
   boardState: boolean[][]
   timePerGen: number
   genNumber: number
+  firstStableGen: number | null
+  stablePerf: number | null
   onSizeChanged: (size: Size) => void
 }
 

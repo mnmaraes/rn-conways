@@ -91,6 +91,48 @@ function gameTick(boardState: boolean[][]) {
   return newState
 }
 
+function areBoardsEqual(boardA: boolean[][], boardB: boolean[][]): boolean {
+  if (boardA.length !== boardB.length) {
+    return false
+  }
+
+  for (let i = 0; i < boardA.length; i++) {
+    if (boardA[i].length !== boardB[i].length) {
+      return false
+    }
+
+    for (let j = 0; j < boardA[i].length; j++) {
+      if (boardA[i][j] !== boardB[i][j]) {
+        return false
+      }
+    }
+  }
+
+  return true
+}
+
+function findFirstStableState(boardState: boolean[][]) {
+  const pastStates: boolean[][][] = []
+
+  const start = performance.now()
+  let newBoardState = boardState
+
+  while (true) {
+    newBoardState = gameTick(newBoardState)
+
+    const firstStableIndex = pastStates.findIndex(state => areBoardsEqual(state, newBoardState))
+
+    if (firstStableIndex !== -1) {
+      return {
+        firstStableGen: firstStableIndex + 1,
+        stablePerf: performance.now() - start,
+      }
+    }
+
+    pastStates.push(newBoardState)
+  }
+}
+
 type Props = Readonly<{
   children: React.ReactNode
 }>
@@ -99,9 +141,12 @@ export function VanillaContainer({children}: Props) {
   const [boardState, setBoardState] = React.useState<boolean[][] | null>(null)
 
   const lastTick = React.useRef<{time: number; tick: number; avg: number} | null>(null)
+  const lastSize = React.useRef<Size | null>(null)
 
   const [timePerGen, setTimePerGen] = React.useState<number>(0)
   const [genNumber, setGenNumber] = React.useState<number>(0)
+  const [firstStableGen, setFirstStableGen] = React.useState<number | null>(null)
+  const [stablePerf, setStablePerf] = React.useState<number | null>(null)
 
   // TODO: Build a proper game loop
   // We want to measure the time between ticks
@@ -139,19 +184,35 @@ export function VanillaContainer({children}: Props) {
     setTimePerGen(lastTick.current.avg)
   }, [boardState])
 
-  const resetBoardSize = React.useCallback((newSize: Size) => {
-    if (newSize.height === 0 || newSize.width === 0) {
-      return
-    }
-
-    setBoardState(state => {
-      if (state === null) {
-        return getInitialBoardState(newSize)
+  const resetBoardSize = React.useCallback(
+    (newSize: Size) => {
+      if (newSize.height === 0 || newSize.width === 0) {
+        return
       }
 
-      return getNewBoardStateAfterResize(state, newSize)
-    })
-  }, [])
+      if (lastSize.current?.height === newSize.height || lastSize.current?.width === newSize.width) {
+        return
+      }
+
+      lastSize.current = newSize
+
+      if (boardState === null) {
+        const newBoardState = getInitialBoardState(newSize)
+
+        const {firstStableGen: stableGen, stablePerf: perf} = findFirstStableState(newBoardState) ?? {}
+
+        setBoardState(newBoardState)
+        setFirstStableGen(stableGen ?? null)
+        setStablePerf(perf ?? null)
+        return
+      }
+
+      setBoardState(state => {
+        return getNewBoardStateAfterResize(state!, newSize)
+      })
+    },
+    [boardState],
+  )
 
   const onSizeChanged = React.useCallback((newSize: Size) => {
     setSize({...newSize})
@@ -170,9 +231,11 @@ export function VanillaContainer({children}: Props) {
       boardState: boardState ?? [],
       timePerGen,
       genNumber,
+      firstStableGen,
+      stablePerf,
       onSizeChanged,
     }
-  }, [boardState, genNumber, onSizeChanged, timePerGen])
+  }, [boardState, firstStableGen, genNumber, onSizeChanged, stablePerf, timePerGen])
 
   return <BoardContainer value={contextValue}>{children}</BoardContainer>
 }
