@@ -91,82 +91,7 @@ function gameTick(boardState: boolean[][]) {
   return newState
 }
 
-// JS numbers are 64-bit floats, but get converted to 32-bit signed ints when performing bitwise operations
-// If we don't want to deal with the complication of signed ints, we use the lower 31 bits to keep things positive
-// Another approach would be to use BigInts, but that really hurts performance
-const WORD_SIZE = 31
-
-function compactZeros(binaryBoard: string) {
-  let compacted = ''
-
-  let numZeroes = 0
-  for (let i = 0; i < binaryBoard.length; i++) {
-    const c = binaryBoard[i]
-
-    if (c === '0') {
-      numZeroes++
-      continue
-    }
-
-    if (numZeroes > 3) {
-      compacted += `(${numZeroes})`
-      numZeroes = 0
-    }
-
-    if (numZeroes > 0) {
-      compacted += '0'.repeat(numZeroes)
-      numZeroes = 0
-    }
-
-    compacted += c
-  }
-
-  if (numZeroes > 0) {
-    compacted += `(${numZeroes})`
-  }
-
-  return compacted
-}
-
 function compressBoard(boardState: boolean[][]) {
-  let binaryBoard = ''
-
-  const height = boardState.length
-  const width = boardState[0].length
-
-  binaryBoard += `${width},${height};`
-
-  let shift = 0
-  let num = 0
-
-  for (let i = 0; i < height; i++) {
-    for (let j = 0; j < width; j++) {
-      if (boardState[i][j]) {
-        // eslint-disable-next-line no-bitwise
-        num |= 1 << shift
-      }
-
-      shift++
-
-      if (shift === WORD_SIZE) {
-        // Convert the number to hex and pad it with 0s to make it 8 characters long, so we can reconstruct it later
-        // We also reverse the string so that we can navigate the board in the same order as we read it
-        binaryBoard += num.toString(16).split('').reverse().join('').padEnd(8, '0')
-
-        shift = 0
-        num = 0
-      }
-    }
-  }
-
-  if (shift !== 0) {
-    binaryBoard += num.toString(16).split('').reverse().join('').padEnd(8, '0')
-  }
-
-  return compactZeros(binaryBoard)
-}
-
-function compressBoardWithoutCompact(boardState: boolean[][]) {
   let binaryBoard = ''
 
   const height = boardState.length
@@ -305,8 +230,6 @@ function printBoards(a: boolean[][], b: boolean[][]) {
   for (let i = 0; i < a.length; i++) {
     console.log(a[i].map(cell => (cell ? 1 : 0)).join(''), ' | ', b[i].map(cell => (cell ? 1 : 0)).join(''))
   }
-
-  // console.log('\n', boardState.map(row => row.map(cell => (cell ? 1 : 0)).join('')).join('\n'))
 }
 
 function boardInfo(boardState: boolean[][]) {
@@ -364,9 +287,6 @@ function findFirstStableState(boardState: boolean[][]) {
   let tick = 0
 
   let timeTicking = 0
-  let timeCompressing = 0
-  let timeCompressingWithoutCompact = 0
-  let timeComparing = 0
 
   while (true) {
     // TODO: Improve time ticking if we can
@@ -374,58 +294,13 @@ function findFirstStableState(boardState: boolean[][]) {
     newBoardState = gameTick(newBoardState)
     timeTicking += performance.now() - startTicking
 
-    const startCompressingIntoBytes = performance.now()
-    const bytes = compressBoard(newBoardState)
-    timeCompressing += performance.now() - startCompressingIntoBytes
+    const compressed = compressBoard(newBoardState)
 
-    // if (!areBoardsEqual(newBoardState, reconstructBoard(bytes))) {
-    //   console.log("Compress with compact doesn't work")
-    //   console.log('Original: ', boardInfo(newBoardState))
-    //   console.log('Compressed: ', bytes)
-    //   console.log('Reconstructed: ', boardInfo(reconstructBoard(bytes)))
-    // }
-
-    const startCompressingIntoBytesWithoutCompact = performance.now()
-    const bytesWithoutCompact = compressBoardWithoutCompact(newBoardState)
-    timeCompressingWithoutCompact += performance.now() - startCompressingIntoBytesWithoutCompact
-
-    if (!areBoardsEqual(newBoardState, reconstructBoard(bytesWithoutCompact))) {
-      console.log("Compress without compact doesn't work")
-      console.log('Compressed: ', bytesWithoutCompact)
-      printBoards(newBoardState, reconstructBoard(bytesWithoutCompact))
-
-      console.log('Original: ', boardInfo(newBoardState))
-      console.log('Reconstructed: ', boardInfo(reconstructBoard(bytesWithoutCompact)))
-    }
-
-    // if (bytes !== bytesWithoutCompact) {
-    //   console.log('with: ', bytes)
-    //   console.log('wout: ', bytesWithoutCompact)
-    // }
-
-    const startComparing = performance.now()
-    const firstStableIndex = pastStatesMap[bytes]
-    timeComparing += performance.now() - startComparing
+    const firstStableIndex = pastStatesMap[compressed]
 
     if (firstStableIndex != null) {
-      // console.log('Original Board: ')
-      // printBoard(newBoardState)
-
-      // const boardWCompact = reconstructBoard(bytes)
-
-      // console.log('Compressed Board (w/ compact): ')
-      // printBoard(boardWCompact)
-
-      // const boardWoutCompact = reconstructBoard(bytesWithoutCompact)
-
-      // console.log('Compressed Board (w/out compact): ')
-      // printBoard(boardWoutCompact)
-
       console.log({
-        timeCompressing,
-        timeCompressingWithoutCompact,
         timeTicking,
-        timeComparing,
         tpg: timeTicking / firstStableIndex,
       })
 
@@ -435,7 +310,7 @@ function findFirstStableState(boardState: boolean[][]) {
       }
     }
 
-    pastStatesMap[bytes] = ++tick
+    pastStatesMap[compressed] = ++tick
   }
 }
 
