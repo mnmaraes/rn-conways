@@ -1,4 +1,5 @@
-import {mapAlive} from './string-board/control'
+import {SparseBoard} from './sparse-board/controls'
+import {mapAlive} from './string-board/controls'
 
 export function stringToFullBoard(stringBoard: string) {
   let fullBoard: boolean[][] = []
@@ -81,4 +82,36 @@ export function fullBoardToString(fullBoard: boolean[][]) {
   }
 
   return stringBoard
+}
+
+export function fullBoardToSparseBoard(fullBoard: boolean[][]): SparseBoard {
+  const board = new Set<number>()
+
+  for (let i = 0; i < fullBoard.length; i++) {
+    const row = fullBoard[i]
+
+    for (let j = 0; j < row.length; j++) {
+      if (row[j]) {
+        board.add(i * row.length + j)
+      }
+    }
+  }
+
+  return {
+    size: [fullBoard[0].length, fullBoard.length],
+    board,
+  }
+}
+
+export function sparseBoardToFullBoard(sparseBoard: SparseBoard): boolean[][] {
+  const fullBoard = [...new Array(sparseBoard.size[1])].map(() => new Array(sparseBoard.size[0]).fill(false))
+
+  for (const position of sparseBoard.board) {
+    const col = position % sparseBoard.size[0]
+    const row = Math.floor(position / sparseBoard.size[0])
+
+    fullBoard[row][col] = true
+  }
+
+  return fullBoard
 }

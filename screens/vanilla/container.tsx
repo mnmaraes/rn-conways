@@ -1,10 +1,16 @@
 import React from 'react'
 import {lazilyLoadInitialBoard} from '../_utils/board'
 import {BoardContainer, Size} from '../_components/BoardContext'
-import {fullBoardToString, stringToFullBoard} from '../_utils/js/transcode'
+import {
+  fullBoardToSparseBoard,
+  fullBoardToString,
+  sparseBoardToFullBoard,
+  stringToFullBoard,
+} from '../_utils/js/transcode'
 import * as FullBoard from '../_utils/js/full-board/controls'
-import * as StringBoard from '../_utils/js/string-board/control'
-import {areBoardsEqual, boardInfo} from '../_utils/js/debug'
+import * as StringBoard from '../_utils/js/string-board/controls'
+import * as SparseBoard from '../_utils/js/sparse-board/controls'
+import {areBoardsEqual} from '../_utils/js/debug'
 
 function getInitialBoardState(size: Size) {
   return lazilyLoadInitialBoard([...new Array(size.height)].map(() => new Array(size.width).fill(false)))
@@ -53,6 +59,7 @@ function findFirstStableState(boardState: boolean[][]) {
 
   let timeTicking = 0
   let timeStringTicking = 0
+  let timeSparseTicking = 0
   let timeDecompressing = 0
 
   while (true) {
@@ -62,20 +69,29 @@ function findFirstStableState(boardState: boolean[][]) {
     newBoardState = FullBoard.gameTick(commonBoard)
     timeTicking += performance.now() - startTicking
 
-    // TODO: Implement string board ticking
     let stringBoard = fullBoardToString(commonBoard)
     const startStringTicking = performance.now()
     stringBoard = StringBoard.gameTick(stringBoard)
     timeStringTicking += performance.now() - startStringTicking
 
-    const compressed = fullBoardToString(newBoardState)
+    // TODO: Implement sparse board logic
+    const sparseBoard = fullBoardToSparseBoard(commonBoard)
 
-    if (compressed !== stringBoard) {
-      console.log(boardInfo(stringToFullBoard(compressed)))
-      console.log("Ticks don't match")
-      console.log(compressed)
-      console.log(stringBoard)
+    if (!areBoardsEqual(commonBoard, sparseBoardToFullBoard(sparseBoard))) {
+      console.log('Sparse translation not working')
+      // printBoards(commonBoard, sparseBoardToFullBoard(sparseBoard))
     }
+
+    const startSparseTicking = performance.now()
+    const retranscoded = SparseBoard.gameTick(sparseBoard)
+    timeSparseTicking += performance.now() - startSparseTicking
+
+    if (!areBoardsEqual(newBoardState, sparseBoardToFullBoard(retranscoded))) {
+      console.log('Sparse tick not working')
+      // printBoards(newBoardState, sparseBoardToFullBoard(retranscoded))
+    }
+
+    const compressed = fullBoardToString(newBoardState)
 
     console.assert(areBoardsEqual(newBoardState, stringToFullBoard(compressed)), "Boards aren't equal")
 
@@ -89,6 +105,7 @@ function findFirstStableState(boardState: boolean[][]) {
       console.log({
         timeTicking,
         timeStringTicking,
+        timeSparseTicking,
         timeDecompressing,
         tpg: timeTicking / firstStableIndex,
       })
