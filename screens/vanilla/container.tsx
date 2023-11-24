@@ -96,6 +96,38 @@ function gameTick(boardState: boolean[][]) {
 // Another approach would be to use BigInts, but that really hurts performance
 const WORD_SIZE = 31
 
+function compactZeros(binaryBoard: string) {
+  let compacted = ''
+
+  let numZeroes = 0
+  for (let i = 0; i < binaryBoard.length; i++) {
+    const c = binaryBoard[i]
+
+    if (c === '0') {
+      numZeroes++
+      continue
+    }
+
+    if (numZeroes > 3) {
+      compacted += `(${numZeroes})`
+      numZeroes = 0
+    }
+
+    if (numZeroes > 0) {
+      compacted += '0'.repeat(numZeroes)
+      numZeroes = 0
+    }
+
+    compacted += c
+  }
+
+  if (numZeroes > 0) {
+    compacted += `(${numZeroes})`
+  }
+
+  return compacted
+}
+
 function compressBoard(boardState: boolean[][]) {
   let binaryBoard = ''
 
@@ -118,7 +150,8 @@ function compressBoard(boardState: boolean[][]) {
 
       if (shift === WORD_SIZE) {
         // Convert the number to hex and pad it with 0s to make it 8 characters long, so we can reconstruct it later
-        binaryBoard += num.toString(16).padStart(8, '0')
+        // We also reverse the string so that we can navigate the board in the same order as we read it
+        binaryBoard += num.toString(16).split('').reverse().join('').padEnd(8, '0')
 
         shift = 0
         num = 0
@@ -127,10 +160,199 @@ function compressBoard(boardState: boolean[][]) {
   }
 
   if (shift !== 0) {
-    binaryBoard += num.toString(16).padStart(8, '0')
+    binaryBoard += num.toString(16).split('').reverse().join('').padEnd(8, '0')
+  }
+
+  return compactZeros(binaryBoard)
+}
+
+function compressBoardWithoutCompact(boardState: boolean[][]) {
+  let binaryBoard = ''
+
+  const height = boardState.length
+  const width = boardState[0].length
+
+  binaryBoard += `${width},${height};`
+
+  let shift = 0
+  let num = 0
+
+  let numZeroes = 0
+
+  for (let i = 0; i < height; i++) {
+    for (let j = 0; j < width; j++) {
+      if (boardState[i][j]) {
+        // eslint-disable-next-line no-bitwise
+        num |= 1 << shift
+      }
+
+      shift++
+
+      const shouldAppend = shift % 4 === 0
+
+      if (!shouldAppend) {
+        continue
+      }
+
+      if (num === 0) {
+        numZeroes++
+        shift = 0
+        continue
+      }
+
+      if (numZeroes > 3) {
+        binaryBoard += `(${numZeroes})`
+        numZeroes = 0
+      }
+
+      if (numZeroes > 0) {
+        binaryBoard += '0'.repeat(numZeroes)
+        numZeroes = 0
+      }
+
+      binaryBoard += num.toString(16)
+      shift = 0
+      num = 0
+    }
+  }
+
+  if (numZeroes > 3) {
+    binaryBoard += `(${numZeroes})`
+    numZeroes = 0
+  }
+
+  if (numZeroes > 0) {
+    binaryBoard += '0'.repeat(numZeroes)
+    numZeroes = 0
+  }
+
+  if (num !== 0) {
+    binaryBoard += num.toString(16)
   }
 
   return binaryBoard
+}
+
+const BOARD_LOOKUP = (function buildLoookup() {
+  const lookup: {[char: string]: [boolean, boolean, boolean, boolean]} = {}
+
+  const max = Math.pow(2, 4)
+
+  for (let i = 0; i < max; i++) {
+    const key = i.toString(16)
+
+    // eslint-disable-next-line no-bitwise
+    const value = [...new Array(4)].map((_, index) => (i & (1 << index)) !== 0) as [boolean, boolean, boolean, boolean]
+
+    lookup[key] = value
+  }
+
+  return lookup
+})()
+
+function reconstructBoard(binaryBoard: string) {
+  const [size, board] = binaryBoard.split(';')
+
+  const [width, height] = size.split(',').map(Number)
+
+  const boardState = [...new Array(height)].map(() => new Array(width).fill(false))
+
+  let boardIndex = 0
+  let strIndex = 0
+
+  const boardSize = width * height
+
+  while (strIndex < board.length) {
+    const c = board[strIndex]
+
+    if (c === '(') {
+      let numStr = ''
+      while (board[++strIndex] !== ')') {
+        numStr += board[strIndex]
+      }
+
+      const numZeroes = Number(numStr)
+
+      strIndex++
+      boardIndex += numZeroes * 4
+      continue
+    }
+
+    const uncompressed = BOARD_LOOKUP[c]
+
+    uncompressed.forEach((isAlive, index) => {
+      if (!isAlive) {
+        return
+      }
+
+      const position = boardIndex + index
+      const x = position % width
+      const y = Math.floor(position / width)
+
+      if (position < boardSize) {
+        boardState[y][x] = isAlive
+      }
+    })
+
+    strIndex++
+    boardIndex += 4
+  }
+
+  return boardState
+}
+
+function printBoards(a: boolean[][], b: boolean[][]) {
+  for (let i = 0; i < a.length; i++) {
+    console.log(a[i].map(cell => (cell ? 1 : 0)).join(''), ' | ', b[i].map(cell => (cell ? 1 : 0)).join(''))
+  }
+
+  // console.log('\n', boardState.map(row => row.map(cell => (cell ? 1 : 0)).join('')).join('\n'))
+}
+
+function boardInfo(boardState: boolean[][]) {
+  let countAlive = 0
+  let firstAlive = null
+  let lastAlive = null
+
+  for (let i = 0; i < boardState.length; i++) {
+    for (let j = 0; j < boardState[i].length; j++) {
+      if (boardState[i][j]) {
+        countAlive++
+
+        if (firstAlive === null) {
+          firstAlive = [i, j]
+        }
+
+        lastAlive = [i, j]
+      }
+    }
+  }
+
+  return {
+    countAlive,
+    firstAlive,
+    lastAlive,
+  }
+}
+
+function areBoardsEqual(boardState1: boolean[][], boardState2: boolean[][]) {
+  if (boardState1.length !== boardState2.length) {
+    return false
+  }
+
+  for (let i = 0; i < boardState1.length; i++) {
+    if (boardState1[i].length !== boardState2[i].length) {
+      return false
+    }
+
+    for (let j = 0; j < boardState1[i].length; j++) {
+      if (boardState1[i][j] !== boardState2[i][j]) {
+        return false
+      }
+    }
+  }
+
+  return true
 }
 
 function findFirstStableState(boardState: boolean[][]) {
@@ -143,6 +365,7 @@ function findFirstStableState(boardState: boolean[][]) {
 
   let timeTicking = 0
   let timeCompressing = 0
+  let timeCompressingWithoutCompact = 0
   let timeComparing = 0
 
   while (true) {
@@ -155,15 +378,54 @@ function findFirstStableState(boardState: boolean[][]) {
     const bytes = compressBoard(newBoardState)
     timeCompressing += performance.now() - startCompressingIntoBytes
 
+    // if (!areBoardsEqual(newBoardState, reconstructBoard(bytes))) {
+    //   console.log("Compress with compact doesn't work")
+    //   console.log('Original: ', boardInfo(newBoardState))
+    //   console.log('Compressed: ', bytes)
+    //   console.log('Reconstructed: ', boardInfo(reconstructBoard(bytes)))
+    // }
+
+    const startCompressingIntoBytesWithoutCompact = performance.now()
+    const bytesWithoutCompact = compressBoardWithoutCompact(newBoardState)
+    timeCompressingWithoutCompact += performance.now() - startCompressingIntoBytesWithoutCompact
+
+    if (!areBoardsEqual(newBoardState, reconstructBoard(bytesWithoutCompact))) {
+      console.log("Compress without compact doesn't work")
+      console.log('Compressed: ', bytesWithoutCompact)
+      printBoards(newBoardState, reconstructBoard(bytesWithoutCompact))
+
+      console.log('Original: ', boardInfo(newBoardState))
+      console.log('Reconstructed: ', boardInfo(reconstructBoard(bytesWithoutCompact)))
+    }
+
+    // if (bytes !== bytesWithoutCompact) {
+    //   console.log('with: ', bytes)
+    //   console.log('wout: ', bytesWithoutCompact)
+    // }
+
     const startComparing = performance.now()
     const firstStableIndex = pastStatesMap[bytes]
     timeComparing += performance.now() - startComparing
 
     if (firstStableIndex != null) {
+      // console.log('Original Board: ')
+      // printBoard(newBoardState)
+
+      // const boardWCompact = reconstructBoard(bytes)
+
+      // console.log('Compressed Board (w/ compact): ')
+      // printBoard(boardWCompact)
+
+      // const boardWoutCompact = reconstructBoard(bytesWithoutCompact)
+
+      // console.log('Compressed Board (w/out compact): ')
+      // printBoard(boardWoutCompact)
+
       console.log({
-        timeCompressingIntoBytes: timeCompressing,
+        timeCompressing,
+        timeCompressingWithoutCompact,
         timeTicking,
-        timeComparingBytes: timeComparing,
+        timeComparing,
         tpg: timeTicking / firstStableIndex,
       })
 
