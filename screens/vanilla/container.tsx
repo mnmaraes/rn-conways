@@ -3,7 +3,8 @@ import {lazilyLoadInitialBoard} from '../_utils/board'
 import {BoardContainer, Size} from '../_components/BoardContext'
 import {fullBoardToString, stringToFullBoard} from '../_utils/js/transcode'
 import * as FullBoard from '../_utils/js/full-board/controls'
-import {areBoardsEqual} from '../_utils/js/debug'
+import * as StringBoard from '../_utils/js/string-board/control'
+import {areBoardsEqual, boardInfo} from '../_utils/js/debug'
 
 function getInitialBoardState(size: Size) {
   return lazilyLoadInitialBoard([...new Array(size.height)].map(() => new Array(size.width).fill(false)))
@@ -51,22 +52,44 @@ function findFirstStableState(boardState: boolean[][]) {
   let tick = 0
 
   let timeTicking = 0
+  let timeStringTicking = 0
+  let timeDecompressing = 0
 
   while (true) {
-    // TODO: Improve time ticking if we can
+    const commonBoard = newBoardState
+
     const startTicking = performance.now()
-    newBoardState = FullBoard.gameTick(newBoardState)
+    newBoardState = FullBoard.gameTick(commonBoard)
     timeTicking += performance.now() - startTicking
+
+    // TODO: Implement string board ticking
+    let stringBoard = fullBoardToString(commonBoard)
+    const startStringTicking = performance.now()
+    stringBoard = StringBoard.gameTick(stringBoard)
+    timeStringTicking += performance.now() - startStringTicking
 
     const compressed = fullBoardToString(newBoardState)
 
+    if (compressed !== stringBoard) {
+      console.log(boardInfo(stringToFullBoard(compressed)))
+      console.log("Ticks don't match")
+      console.log(compressed)
+      console.log(stringBoard)
+    }
+
     console.assert(areBoardsEqual(newBoardState, stringToFullBoard(compressed)), "Boards aren't equal")
+
+    const startDecompressing = performance.now()
+    const fullBoard = stringToFullBoard(compressed)
+    timeDecompressing += performance.now() - startDecompressing
 
     const firstStableIndex = pastStatesMap[compressed]
 
     if (firstStableIndex != null) {
       console.log({
         timeTicking,
+        timeStringTicking,
+        timeDecompressing,
         tpg: timeTicking / firstStableIndex,
       })
 

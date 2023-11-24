@@ -1,52 +1,17 @@
-import {BOARD_LOOKUP} from './string-board/control'
+import {mapAlive} from './string-board/control'
 
 export function stringToFullBoard(stringBoard: string) {
-  const [size, board] = stringBoard.split(';')
+  let fullBoard: boolean[][] = []
 
-  const [width, height] = size.split(',').map(Number)
-
-  const fullBoard = [...new Array(height)].map(() => new Array(width).fill(false))
-
-  let boardIndex = 0
-  let strIndex = 0
-
-  const boardSize = width * height
-
-  while (strIndex < board.length) {
-    const c = board[strIndex]
-
-    if (c === '(') {
-      let numStr = ''
-      while (board[++strIndex] !== ')') {
-        numStr += board[strIndex]
-      }
-
-      const numZeroes = Number(numStr)
-
-      strIndex++
-      boardIndex += numZeroes * 4
-      continue
-    }
-
-    const uncompressed = BOARD_LOOKUP[c]
-
-    uncompressed.forEach((isAlive, index) => {
-      if (!isAlive) {
-        return
-      }
-
-      const position = boardIndex + index
-      const x = position % width
-      const y = Math.floor(position / width)
-
-      if (position < boardSize) {
-        fullBoard[y][x] = isAlive
-      }
-    })
-
-    strIndex++
-    boardIndex += 4
-  }
+  mapAlive(
+    stringBoard,
+    (x, y) => {
+      fullBoard[y][x] = true
+    },
+    (width, height) => {
+      fullBoard = [...new Array(height)].map(() => new Array(width).fill(false))
+    },
+  )
 
   return fullBoard
 }
