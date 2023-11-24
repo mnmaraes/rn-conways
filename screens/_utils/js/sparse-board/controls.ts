@@ -63,6 +63,18 @@ export function gameTick(boardState: BoardState): BoardState {
   }
 }
 
+const TRANSITIONS_CACHE = new Map<string, BoardState>()
+
+export function memoizedGameTick(boardState: BoardState): BoardState {
+  const key = stringifyBoard(boardState)
+
+  if (!TRANSITIONS_CACHE.has(key)) {
+    TRANSITIONS_CACHE.set(key, gameTick(boardState))
+  }
+
+  return TRANSITIONS_CACHE.get(key)!
+}
+
 export function stringifyBoard(board: BoardState): string {
   return `${board.size[0]},${board.size[1]};${[...board.board].join(',')}`
 }

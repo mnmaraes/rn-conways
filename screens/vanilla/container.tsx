@@ -2,7 +2,7 @@ import React from 'react'
 import {lazilyLoadInitialBoard} from '../_utils/board'
 import {BoardContainer, Size} from '../_components/BoardContext'
 
-import {BoardState, gameTick, stringifyBoard} from '../_utils/js/sparse-board/controls'
+import {BoardState, memoizedGameTick, stringifyBoard} from '../_utils/js/sparse-board/controls'
 
 function getInitialBoardState(size: Size): BoardState {
   return lazilyLoadInitialBoard({
@@ -41,7 +41,7 @@ function findFirstStableState(boardState: BoardState) {
 
   while (true) {
     const startTicking = performance.now()
-    newBoardState = gameTick(newBoardState)
+    newBoardState = memoizedGameTick(newBoardState)
     timeTicking += performance.now() - startTicking
 
     const startEncoding = performance.now()
@@ -93,7 +93,7 @@ export function VanillaContainer({children}: Props) {
           return null
         }
 
-        return gameTick(state)
+        return memoizedGameTick(state)
       })
       setGenNumber(i => i + 1)
     }, 1)
