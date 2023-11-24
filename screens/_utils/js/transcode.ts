@@ -1,4 +1,4 @@
-import {SparseBoard} from './sparse-board/controls'
+import {BoardState} from './sparse-board/controls'
 import {mapAlive} from './string-board/controls'
 
 export function stringToFullBoard(stringBoard: string) {
@@ -84,7 +84,7 @@ export function fullBoardToString(fullBoard: boolean[][]) {
   return stringBoard
 }
 
-export function fullBoardToSparseBoard(fullBoard: boolean[][]): SparseBoard {
+export function fullBoardToSparseBoard(fullBoard: boolean[][]): BoardState {
   const board = new Set<number>()
 
   for (let i = 0; i < fullBoard.length; i++) {
@@ -103,7 +103,7 @@ export function fullBoardToSparseBoard(fullBoard: boolean[][]): SparseBoard {
   }
 }
 
-export function sparseBoardToFullBoard(sparseBoard: SparseBoard): boolean[][] {
+export function sparseBoardToFullBoard(sparseBoard: BoardState): boolean[][] {
   const fullBoard = [...new Array(sparseBoard.size[1])].map(() => new Array(sparseBoard.size[0]).fill(false))
 
   for (const position of sparseBoard.board) {

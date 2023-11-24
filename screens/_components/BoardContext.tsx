@@ -1,4 +1,5 @@
 import React from 'react'
+import {BoardState} from '../_utils/js/sparse-board/controls'
 
 export type Size = {
   width: number
@@ -6,7 +7,7 @@ export type Size = {
 }
 
 export type ContextProps = {
-  boardState: boolean[][]
+  boardState: BoardState
   timePerGen: number
   genNumber: number
   firstStableGen: number | null

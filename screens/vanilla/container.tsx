@@ -1,54 +1,33 @@
 import React from 'react'
 import {lazilyLoadInitialBoard} from '../_utils/board'
 import {BoardContainer, Size} from '../_components/BoardContext'
-import {
-  fullBoardToSparseBoard,
-  fullBoardToString,
-  sparseBoardToFullBoard,
-  stringToFullBoard,
-} from '../_utils/js/transcode'
-import * as FullBoard from '../_utils/js/full-board/controls'
-import * as SparseBoard from '../_utils/js/sparse-board/controls'
-import {areBoardsEqual} from '../_utils/js/debug'
 
-function getInitialBoardState(size: Size) {
-  return lazilyLoadInitialBoard([...new Array(size.height)].map(() => new Array(size.width).fill(false)))
+import {BoardState, gameTick, stringifyBoard} from '../_utils/js/sparse-board/controls'
+
+function getInitialBoardState(size: Size): BoardState {
+  return lazilyLoadInitialBoard({
+    size: [size.width, size.height],
+    board: new Set<number>(),
+  })
 }
 
-function getNewBoardStateAfterResize(boardState: boolean[][], newSize: Size) {
-  const newBoardState = [...boardState.map(row => [...row])]
-  const oldHeight = boardState.length
+function getNewBoardStateAfterResize(boardState: BoardState, newSize: Size): BoardState {
+  const newState = new Set<number>()
 
-  if (oldHeight > newSize.height) {
-    // If the new height is smaller than the old height, we need to remove rows from the bottom
-    newBoardState.splice(newSize.height, oldHeight - newSize.height)
-  } else if (oldHeight < newSize.height) {
-    // If the new height is larger than the old height, we need to add rows to the bottom
-    const newRows = newSize.height - oldHeight
-    const newColumns = newSize.width
+  for (const position of boardState.board) {
+    const col = position % boardState.size[0]
+    const row = Math.floor(position / boardState.size[0])
 
-    const rowsToAdd = [...new Array(newRows)].map(() => new Array(newColumns).fill(false))
-
-    newBoardState.push(...rowsToAdd)
+    newState.add(row * newSize.width + col)
   }
 
-  newBoardState.forEach(row => {
-    const oldWidth = row.length
-
-    if (oldWidth > newSize.width) {
-      // If the new width is smaller than the old width, we need to remove columns from the right
-      row.splice(newSize.width, oldWidth - newSize.width)
-    } else if (oldWidth < newSize.width) {
-      // If the new width is larger than the old width, we need to add columns to the right
-      const newColumns = newSize.width - oldWidth
-      row.push(...new Array(newColumns).fill(false))
-    }
-  })
-
-  return newBoardState
+  return {
+    size: [newSize.width, newSize.height],
+    board: newState,
+  }
 }
 
-function findFirstStableState(boardState: boolean[][]) {
+function findFirstStableState(boardState: BoardState) {
   const pastStatesMap: {[board: string]: number} = {}
 
   const start = performance.now()
@@ -57,47 +36,27 @@ function findFirstStableState(boardState: boolean[][]) {
   let tick = 0
 
   let timeTicking = 0
-  let timeSparseTicking = 0
-  let timeDecompressing = 0
+  let timeEnconding = 0
+  let timeChecking = 0
 
   while (true) {
-    const commonBoard = newBoardState
-
     const startTicking = performance.now()
-    newBoardState = FullBoard.gameTick(commonBoard)
+    newBoardState = gameTick(newBoardState)
     timeTicking += performance.now() - startTicking
 
-    const sparseBoard = fullBoardToSparseBoard(commonBoard)
+    const startEncoding = performance.now()
+    const boardString = stringifyBoard(newBoardState)
+    timeEnconding += performance.now() - startEncoding
 
-    if (!areBoardsEqual(commonBoard, sparseBoardToFullBoard(sparseBoard))) {
-      console.log('Sparse translation not working')
-      // printBoards(commonBoard, sparseBoardToFullBoard(sparseBoard))
-    }
-
-    const startSparseTicking = performance.now()
-    const retranscoded = SparseBoard.gameTick(sparseBoard)
-    timeSparseTicking += performance.now() - startSparseTicking
-
-    if (!areBoardsEqual(newBoardState, sparseBoardToFullBoard(retranscoded))) {
-      console.log('Sparse tick not working')
-      // printBoards(newBoardState, sparseBoardToFullBoard(retranscoded))
-    }
-
-    const compressed = fullBoardToString(newBoardState)
-
-    console.assert(areBoardsEqual(newBoardState, stringToFullBoard(compressed)), "Boards aren't equal")
-
-    const startDecompressing = performance.now()
-    const fullBoard = stringToFullBoard(compressed)
-    timeDecompressing += performance.now() - startDecompressing
-
-    const firstStableIndex = pastStatesMap[compressed]
+    const startChecking = performance.now()
+    const firstStableIndex = pastStatesMap[boardString]
+    timeChecking += performance.now() - startChecking
 
     if (firstStableIndex != null) {
       console.log({
         timeTicking,
-        timeSparseTicking,
-        timeDecompressing,
+        timeEnconding,
+        timeChecking,
         tpg: timeTicking / firstStableIndex,
       })
 
@@ -107,7 +66,7 @@ function findFirstStableState(boardState: boolean[][]) {
       }
     }
 
-    pastStatesMap[compressed] = ++tick
+    pastStatesMap[boardString] = ++tick
   }
 }
 
@@ -116,7 +75,7 @@ type Props = Readonly<{
 }>
 export function VanillaContainer({children}: Props) {
   const [size, setSize] = React.useState<Size | null>(null)
-  const [boardState, setBoardState] = React.useState<boolean[][] | null>(null)
+  const [boardState, setBoardState] = React.useState<BoardState | null>(null)
 
   const lastTick = React.useRef<{time: number; tick: number; avg: number} | null>(null)
   const lastSize = React.useRef<Size | null>(null)
@@ -130,7 +89,11 @@ export function VanillaContainer({children}: Props) {
   React.useEffect(() => {
     setInterval(() => {
       setBoardState(state => {
-        return FullBoard.gameTick(state ?? [])
+        if (state == null) {
+          return null
+        }
+
+        return gameTick(state)
       })
       setGenNumber(i => i + 1)
     }, 1)
@@ -138,7 +101,7 @@ export function VanillaContainer({children}: Props) {
 
   // Calculate the average time per generation
   React.useEffect(() => {
-    if (boardState == null || boardState.length === 0) {
+    if (boardState == null || boardState.board.size === 0) {
       return
     }
 
@@ -205,7 +168,7 @@ export function VanillaContainer({children}: Props) {
 
   const contextValue = React.useMemo(() => {
     return {
-      boardState: boardState ?? [],
+      boardState: boardState ?? {size: [0, 0], board: new Set<number>()},
       timePerGen,
       genNumber,
       firstStableGen,

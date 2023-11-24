@@ -1,9 +1,9 @@
-export type SparseBoard = {
+export type BoardState = {
   size: [number, number]
   board: Set<number>
 }
 
-export function gameTick(boardState: SparseBoard): SparseBoard {
+export function gameTick(boardState: BoardState): BoardState {
   const newBoardState = new Set<number>()
   const sparseCounter = new Map<number, number>()
 
@@ -60,5 +60,25 @@ export function gameTick(boardState: SparseBoard): SparseBoard {
   return {
     size: boardState.size,
     board: newBoardState,
+  }
+}
+
+export function stringifyBoard(board: BoardState): string {
+  return `${board.size[0]},${board.size[1]};${[...board.board].join(',')}`
+}
+
+export function boardFromString(boardString: string): BoardState {
+  const [sizeString, encodedBoard] = boardString.split(';')
+  const [width, height] = sizeString.split(',').map(Number)
+
+  const board = new Set<number>()
+
+  for (const position of encodedBoard.split(',').map(Number)) {
+    board.add(position)
+  }
+
+  return {
+    size: [width, height],
+    board,
   }
 }

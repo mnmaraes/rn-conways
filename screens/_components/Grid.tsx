@@ -82,7 +82,7 @@ export function Grid({width, height}: Props) {
     return dynamicStyles
   }, [size, layoutWidth, layoutHeight])
 
-  if (boardState == null || boardState.length === 0) {
+  if (boardState == null || boardState.board.size === 0) {
     return null
   }
 
@@ -92,7 +92,12 @@ export function Grid({width, height}: Props) {
         return (
           <View key={i} style={[styles.gridRow, dynamicStyles.gridRow]}>
             {[...Array(size.width)].map((__, j) => {
-              return <View key={j} style={boardState[i][j] ? styles.livingCell : styles.deadCell} />
+              return (
+                <View
+                  key={j}
+                  style={boardState.board.has(i * boardState.size[0] + j) ? styles.livingCell : styles.deadCell}
+                />
+              )
             })}
           </View>
         )

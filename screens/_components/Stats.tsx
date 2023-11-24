@@ -11,7 +11,7 @@ export function Stats() {
 
   return (
     <View style={styles.container}>
-      <Stat label="Size" value={`${boardState[0]?.length}x${boardState.length}`} />
+      <Stat label="Size" value={`${boardState.size[0]}x${boardState.size[1]}`} />
       <Stat label="gen/s" value={gps} />
       <Stat label="gen. #" value={genNumber} />
       <Stat label="gen to stable" value={firstStableGen ?? 'calculating'} />
