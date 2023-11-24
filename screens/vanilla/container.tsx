@@ -1,6 +1,9 @@
 import React from 'react'
 import {lazilyLoadInitialBoard} from '../_utils/board'
 import {BoardContainer, Size} from '../_components/BoardContext'
+import {fullBoardToString, stringToFullBoard} from '../_utils/js/transcode'
+import * as FullBoard from '../_utils/js/full-board/controls'
+import {areBoardsEqual} from '../_utils/js/debug'
 
 function getInitialBoardState(size: Size) {
   return lazilyLoadInitialBoard([...new Array(size.height)].map(() => new Array(size.width).fill(false)))
@@ -39,245 +42,6 @@ function getNewBoardStateAfterResize(boardState: boolean[][], newSize: Size) {
   return newBoardState
 }
 
-function cellState(boardState: boolean[][], x: number, y: number) {
-  const isAlive = boardState[y][x]
-
-  let neighbors = 0
-  for (let i = -1; i <= 1; i++) {
-    for (let j = -1; j <= 1; j++) {
-      const neighborX = x + i
-      const neighborY = y + j
-
-      if (neighborX < 0 || neighborX >= boardState[0].length || neighborY < 0 || neighborY >= boardState.length) {
-        continue
-      }
-
-      if (i === 0 && j === 0) {
-        continue
-      }
-
-      if (boardState[neighborY][neighborX]) {
-        neighbors++
-      }
-    }
-  }
-
-  return {
-    isAlive,
-    neighbors,
-  }
-}
-
-function gameTick(boardState: boolean[][]) {
-  const newState = []
-
-  for (let i = 0; i < boardState.length; i++) {
-    const newRow = []
-    for (let j = 0; j < boardState[0].length; j++) {
-      const {isAlive, neighbors} = cellState(boardState, j, i)
-
-      if (!isAlive && neighbors === 3) {
-        newRow.push(true)
-      } else if (isAlive && (neighbors < 2 || neighbors > 3)) {
-        newRow.push(false)
-      } else {
-        newRow.push(isAlive)
-      }
-    }
-
-    newState.push(newRow)
-  }
-
-  return newState
-}
-
-function compressBoard(boardState: boolean[][]) {
-  let binaryBoard = ''
-
-  const height = boardState.length
-  const width = boardState[0].length
-
-  binaryBoard += `${width},${height};`
-
-  let shift = 0
-  let num = 0
-
-  let numZeroes = 0
-
-  for (let i = 0; i < height; i++) {
-    for (let j = 0; j < width; j++) {
-      if (boardState[i][j]) {
-        // eslint-disable-next-line no-bitwise
-        num |= 1 << shift
-      }
-
-      shift++
-
-      const shouldAppend = shift % 4 === 0
-
-      if (!shouldAppend) {
-        continue
-      }
-
-      if (num === 0) {
-        numZeroes++
-        shift = 0
-        continue
-      }
-
-      if (numZeroes > 3) {
-        binaryBoard += `(${numZeroes})`
-        numZeroes = 0
-      }
-
-      if (numZeroes > 0) {
-        binaryBoard += '0'.repeat(numZeroes)
-        numZeroes = 0
-      }
-
-      binaryBoard += num.toString(16)
-      shift = 0
-      num = 0
-    }
-  }
-
-  if (numZeroes > 3) {
-    binaryBoard += `(${numZeroes})`
-    numZeroes = 0
-  }
-
-  if (numZeroes > 0) {
-    binaryBoard += '0'.repeat(numZeroes)
-    numZeroes = 0
-  }
-
-  if (num !== 0) {
-    binaryBoard += num.toString(16)
-  }
-
-  return binaryBoard
-}
-
-const BOARD_LOOKUP = (function buildLoookup() {
-  const lookup: {[char: string]: [boolean, boolean, boolean, boolean]} = {}
-
-  const max = Math.pow(2, 4)
-
-  for (let i = 0; i < max; i++) {
-    const key = i.toString(16)
-
-    // eslint-disable-next-line no-bitwise
-    const value = [...new Array(4)].map((_, index) => (i & (1 << index)) !== 0) as [boolean, boolean, boolean, boolean]
-
-    lookup[key] = value
-  }
-
-  return lookup
-})()
-
-function reconstructBoard(binaryBoard: string) {
-  const [size, board] = binaryBoard.split(';')
-
-  const [width, height] = size.split(',').map(Number)
-
-  const boardState = [...new Array(height)].map(() => new Array(width).fill(false))
-
-  let boardIndex = 0
-  let strIndex = 0
-
-  const boardSize = width * height
-
-  while (strIndex < board.length) {
-    const c = board[strIndex]
-
-    if (c === '(') {
-      let numStr = ''
-      while (board[++strIndex] !== ')') {
-        numStr += board[strIndex]
-      }
-
-      const numZeroes = Number(numStr)
-
-      strIndex++
-      boardIndex += numZeroes * 4
-      continue
-    }
-
-    const uncompressed = BOARD_LOOKUP[c]
-
-    uncompressed.forEach((isAlive, index) => {
-      if (!isAlive) {
-        return
-      }
-
-      const position = boardIndex + index
-      const x = position % width
-      const y = Math.floor(position / width)
-
-      if (position < boardSize) {
-        boardState[y][x] = isAlive
-      }
-    })
-
-    strIndex++
-    boardIndex += 4
-  }
-
-  return boardState
-}
-
-function printBoards(a: boolean[][], b: boolean[][]) {
-  for (let i = 0; i < a.length; i++) {
-    console.log(a[i].map(cell => (cell ? 1 : 0)).join(''), ' | ', b[i].map(cell => (cell ? 1 : 0)).join(''))
-  }
-}
-
-function boardInfo(boardState: boolean[][]) {
-  let countAlive = 0
-  let firstAlive = null
-  let lastAlive = null
-
-  for (let i = 0; i < boardState.length; i++) {
-    for (let j = 0; j < boardState[i].length; j++) {
-      if (boardState[i][j]) {
-        countAlive++
-
-        if (firstAlive === null) {
-          firstAlive = [i, j]
-        }
-
-        lastAlive = [i, j]
-      }
-    }
-  }
-
-  return {
-    countAlive,
-    firstAlive,
-    lastAlive,
-  }
-}
-
-function areBoardsEqual(boardState1: boolean[][], boardState2: boolean[][]) {
-  if (boardState1.length !== boardState2.length) {
-    return false
-  }
-
-  for (let i = 0; i < boardState1.length; i++) {
-    if (boardState1[i].length !== boardState2[i].length) {
-      return false
-    }
-
-    for (let j = 0; j < boardState1[i].length; j++) {
-      if (boardState1[i][j] !== boardState2[i][j]) {
-        return false
-      }
-    }
-  }
-
-  return true
-}
-
 function findFirstStableState(boardState: boolean[][]) {
   const pastStatesMap: {[board: string]: number} = {}
 
@@ -291,10 +55,12 @@ function findFirstStableState(boardState: boolean[][]) {
   while (true) {
     // TODO: Improve time ticking if we can
     const startTicking = performance.now()
-    newBoardState = gameTick(newBoardState)
+    newBoardState = FullBoard.gameTick(newBoardState)
     timeTicking += performance.now() - startTicking
 
-    const compressed = compressBoard(newBoardState)
+    const compressed = fullBoardToString(newBoardState)
+
+    console.assert(areBoardsEqual(newBoardState, stringToFullBoard(compressed)), "Boards aren't equal")
 
     const firstStableIndex = pastStatesMap[compressed]
 
@@ -333,7 +99,7 @@ export function VanillaContainer({children}: Props) {
   React.useEffect(() => {
     setInterval(() => {
       setBoardState(state => {
-        return gameTick(state ?? [])
+        return FullBoard.gameTick(state ?? [])
       })
       setGenNumber(i => i + 1)
     }, 1)
