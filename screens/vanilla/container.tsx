@@ -8,7 +8,6 @@ import {
   stringToFullBoard,
 } from '../_utils/js/transcode'
 import * as FullBoard from '../_utils/js/full-board/controls'
-import * as StringBoard from '../_utils/js/string-board/controls'
 import * as SparseBoard from '../_utils/js/sparse-board/controls'
 import {areBoardsEqual} from '../_utils/js/debug'
 
@@ -58,7 +57,6 @@ function findFirstStableState(boardState: boolean[][]) {
   let tick = 0
 
   let timeTicking = 0
-  let timeStringTicking = 0
   let timeSparseTicking = 0
   let timeDecompressing = 0
 
@@ -69,12 +67,6 @@ function findFirstStableState(boardState: boolean[][]) {
     newBoardState = FullBoard.gameTick(commonBoard)
     timeTicking += performance.now() - startTicking
 
-    let stringBoard = fullBoardToString(commonBoard)
-    const startStringTicking = performance.now()
-    stringBoard = StringBoard.gameTick(stringBoard)
-    timeStringTicking += performance.now() - startStringTicking
-
-    // TODO: Implement sparse board logic
     const sparseBoard = fullBoardToSparseBoard(commonBoard)
 
     if (!areBoardsEqual(commonBoard, sparseBoardToFullBoard(sparseBoard))) {
@@ -104,7 +96,6 @@ function findFirstStableState(boardState: boolean[][]) {
     if (firstStableIndex != null) {
       console.log({
         timeTicking,
-        timeStringTicking,
         timeSparseTicking,
         timeDecompressing,
         tpg: timeTicking / firstStableIndex,

@@ -4,54 +4,61 @@ export type SparseBoard = {
 }
 
 export function gameTick(boardState: SparseBoard): SparseBoard {
-  const newBoardState: number[] = []
-  const sparseCounter: {[position: number]: number} = {}
+  const newBoardState = new Set<number>()
+  const sparseCounter = new Map<number, number>()
 
   const [width, height] = boardState.size
 
+  const defaultDeltas = [-width - 1, -width, -width + 1, -1, 1, width - 1, width, width + 1]
+  const firstColDeltas = [-width, -width + 1, 1, width, width + 1]
+  const lastColDeltas = [-width - 1, -width, -1, width - 1, width]
+
   for (const position of boardState.board) {
     const col = position % width
-    const row = Math.floor(position / width)
 
-    for (let k = -1; k <= 1; k++) {
-      for (let l = -1; l <= 1; l++) {
-        const neighborRow = row + k
-        const neighborCol = col + l
+    let deltas = defaultDeltas
+    switch (col) {
+      case 0:
+        deltas = firstColDeltas
+        break
+      case width - 1:
+        deltas = lastColDeltas
+        break
+    }
 
-        if (neighborRow < 0 || neighborRow >= height || neighborCol < 0 || neighborCol >= width) {
-          continue
-        }
+    for (const delta of deltas) {
+      const neighborPosition = position + delta
 
-        const neighborPosition = neighborRow * width + neighborCol
-
-        // If this is the current cell's position, do nothing
-        if (neighborPosition === position) {
-          continue
-        }
-
-        // Increment the neighbor count
-        if (!sparseCounter[neighborPosition]) {
-          sparseCounter[neighborPosition] = 1
-        } else {
-          sparseCounter[neighborPosition] += 1
-        }
+      if (neighborPosition < 0 || neighborPosition >= width * height) {
+        continue
       }
+
+      // Increment the neighbor count
+      sparseCounter.set(neighborPosition, (sparseCounter.get(neighborPosition) ?? 0) + 1)
     }
   }
 
-  Object.keys(sparseCounter).forEach(positionStr => {
-    const position = Number(positionStr)
+  for (const position of sparseCounter.keys()) {
+    const neighbors = sparseCounter.get(position)!
+
+    if (neighbors > 3 || neighbors < 2) {
+      continue
+    }
+
+    if (neighbors === 3) {
+      newBoardState.add(position)
+      continue
+    }
 
     const isAlive = boardState.board.has(position)
-    const neighbors = sparseCounter[position]
 
-    if ((!isAlive && neighbors === 3) || (isAlive && (neighbors === 2 || neighbors === 3))) {
-      newBoardState.push(position)
+    if (isAlive) {
+      newBoardState.add(position)
     }
-  })
+  }
 
   return {
     size: boardState.size,
-    board: new Set(newBoardState),
+    board: newBoardState,
   }
 }
