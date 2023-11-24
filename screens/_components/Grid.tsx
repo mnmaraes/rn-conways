@@ -70,10 +70,12 @@ export function Grid({width, height}: Props) {
     // eslint-disable-next-line @typescript-eslint/no-shadow
     const dynamicStyles = StyleSheet.create({
       gridContainer: {
+        ...styles.gridContainer,
         gap: gap,
         paddingVertical: verticalPadding / 2,
       },
       gridRow: {
+        ...styles.gridRow,
         gap: gap,
         paddingHorizontal: horizontalPadding / 2,
       },
@@ -87,10 +89,10 @@ export function Grid({width, height}: Props) {
   }
 
   return (
-    <View style={[styles.gridContainer, dynamicStyles.gridContainer]} onLayout={onLayout}>
+    <View style={dynamicStyles.gridContainer} onLayout={onLayout}>
       {[...Array(size.height)].map((_, i) => {
         return (
-          <View key={i} style={[styles.gridRow, dynamicStyles.gridRow]}>
+          <View key={i} style={dynamicStyles.gridRow}>
             {[...Array(size.width)].map((__, j) => {
               return (
                 <View
