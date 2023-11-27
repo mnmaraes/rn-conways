@@ -4,9 +4,9 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import _ from 'lodash'
 import {useNavigation} from '@react-navigation/native'
 
-type Flavor = 'vanilla' | 'worklets' | 'wasm'
+type Flavor = 'vanilla' | 'zustand' | 'worklets' | 'wasm'
 
-const FLAVORS: Flavor[] = ['vanilla', 'worklets', 'wasm']
+const FLAVORS: Flavor[] = ['vanilla', 'zustand', 'wasm']
 
 function HomeScreen() {
   return (
@@ -26,10 +26,16 @@ function RowContainer({label}: Readonly<{label: string}>) {
     <TouchableHighlight
       underlayColor={'lightgray'}
       onPress={() => {
-        if (label === 'vanilla') {
-          navigation.navigate('Vanilla')
-        } else {
-          navigation.navigate('ComingSoon')
+        switch (label) {
+          case 'vanilla':
+            navigation.navigate('Vanilla')
+            break
+          case 'zustand':
+            navigation.navigate('Zustand')
+            break
+          default:
+            navigation.navigate('ComingSoon')
+            break
         }
       }}>
       <View style={styles.rowContainer}>

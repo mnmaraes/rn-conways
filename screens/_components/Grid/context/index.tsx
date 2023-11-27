@@ -1,7 +1,7 @@
 import {useLayout} from '@react-native-community/hooks'
 import React from 'react'
 import {Dimensions, StyleSheet, View} from 'react-native'
-import {useBoardContext} from './BoardContext'
+import {useBoardContext} from '../../BoardContext'
 
 const DEFAULT_SCALE = 10
 
@@ -94,18 +94,23 @@ export function Grid({width, height}: Props) {
         return (
           <View key={i} style={dynamicStyles.gridRow}>
             {[...Array(size.width)].map((__, j) => {
-              return (
-                <View
-                  key={j}
-                  style={boardState.board.has(i * boardState.size[0] + j) ? styles.livingCell : styles.deadCell}
-                />
-              )
+              return <Cell key={j} position={i * size.width + j} />
             })}
           </View>
         )
       })}
     </View>
   )
+}
+
+type CellProps = Readonly<{
+  position: number
+}>
+
+function Cell({position}: CellProps) {
+  const {boardState} = useBoardContext()
+
+  return <View style={boardState.board.has(position) ? styles.livingCell : styles.deadCell} />
 }
 
 const styles = StyleSheet.create({

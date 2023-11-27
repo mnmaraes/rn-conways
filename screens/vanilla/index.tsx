@@ -1,7 +1,7 @@
 import React from 'react'
 import {ScrollView, StyleSheet, View} from 'react-native'
-import {Grid} from '../_components/Grid'
-import {Stats} from '../_components/Stats'
+import {Grid} from '../_components/Grid/context'
+import {Stats} from '../_components/Stats/context'
 import {VanillaContainer} from './container'
 
 function VanillaScreen() {

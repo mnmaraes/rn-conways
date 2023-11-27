@@ -9,6 +9,7 @@ export type Size = {
 export type ContextProps = {
   boardState: BoardState
   timePerGen: number
+  lastTickPerf: number
   genNumber: number
   firstStableGen: number | null
   stablePerf: number | null

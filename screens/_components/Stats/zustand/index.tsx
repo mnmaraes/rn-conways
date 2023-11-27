@@ -2,17 +2,21 @@ import React from 'react'
 import {View, Text, StyleSheet} from 'react-native'
 import _ from 'lodash'
 import {formatDuration, intervalToDuration} from 'date-fns'
-import {useBoardContext} from './BoardContext'
+import {useBoardStateStore} from '../../../state-options/zustand/state'
 
 export function Stats() {
-  const {boardState, timePerGen, genNumber, firstStableGen, stablePerf} = useBoardContext()
-
-  const gps = 1000 / timePerGen
+  const timePerGen = useBoardStateStore(state => state.timePerGen)
+  const lastTickPerf = useBoardStateStore(state => state.lastTickPerf)
+  const sizeStr = useBoardStateStore(state => `${state.boardState?.size[0]}x${state.boardState?.size[1]}`)
+  const genNumber = useBoardStateStore(state => state.genNumber)
+  const firstStableGen = useBoardStateStore(state => state.firstStableGen)
+  const stablePerf = useBoardStateStore(state => state.stablePerf)
 
   return (
     <View style={styles.container}>
-      <Stat label="Size" value={`${boardState.size[0]}x${boardState.size[1]}`} />
-      <Stat label="gen/s" value={gps} />
+      <Stat label="Size" value={sizeStr} />
+      <Stat label="gen/s (avg)" value={1000 / timePerGen} />
+      <Stat label="gen/s (last)" value={1000 / lastTickPerf} />
       <Stat label="gen. #" value={genNumber} />
       <Stat label="gen to stable" value={firstStableGen ?? 'calculating'} />
       <Stat label="stable perf" value={stablePerf ?? 'calculating'} />
