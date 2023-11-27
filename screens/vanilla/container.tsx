@@ -35,31 +35,14 @@ function findFirstStableState(boardState: BoardState) {
 
   let tick = 0
 
-  let timeTicking = 0
-  let timeEnconding = 0
-  let timeChecking = 0
-
   while (true) {
-    const startTicking = performance.now()
     newBoardState = memoizedGameTick(newBoardState)
-    timeTicking += performance.now() - startTicking
 
-    const startEncoding = performance.now()
     const boardString = stringifyBoard(newBoardState)
-    timeEnconding += performance.now() - startEncoding
 
-    const startChecking = performance.now()
     const firstStableIndex = pastStatesMap[boardString]
-    timeChecking += performance.now() - startChecking
 
     if (firstStableIndex != null) {
-      console.log({
-        timeTicking,
-        timeEnconding,
-        timeChecking,
-        tpg: timeTicking / firstStableIndex,
-      })
-
       return {
         firstStableGen: firstStableIndex,
         stablePerf: performance.now() - start,
