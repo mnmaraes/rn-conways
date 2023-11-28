@@ -4,9 +4,9 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import _ from 'lodash'
 import {useNavigation} from '@react-navigation/native'
 
-type Flavor = 'vanilla' | 'zustand' | 'worklets' | 'wasm'
+type Flavor = 'vanilla' | 'zustand' | 'reanimated'
 
-const FLAVORS: Flavor[] = ['vanilla', 'zustand', 'wasm']
+const FLAVORS: Flavor[] = ['vanilla', 'zustand', 'reanimated']
 
 function HomeScreen() {
   return (
@@ -33,8 +33,8 @@ function RowContainer({label}: Readonly<{label: string}>) {
           case 'zustand':
             navigation.navigate('Zustand')
             break
-          default:
-            navigation.navigate('ComingSoon')
+          case 'reanimated':
+            navigation.navigate('Reanimated')
             break
         }
       }}>

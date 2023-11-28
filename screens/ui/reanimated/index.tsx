@@ -1,12 +1,12 @@
 import React from 'react'
 import {ScrollView, StyleSheet, View} from 'react-native'
-import {Grid} from '../_components/Grid/context'
-import {Stats} from '../_components/Stats/context'
-import {VanillaContainer} from './container'
+import {Grid} from '../../_components/Grid/reanimated'
+import {Stats} from '../../_components/Stats/reanimated'
+import {ReanimatedContainer} from './container'
 
-function VanillaScreen() {
+function ReanimatedScreen() {
   return (
-    <VanillaContainer>
+    <ReanimatedContainer>
       <Stats />
       <ScrollView
         showsHorizontalScrollIndicator={false}
@@ -17,7 +17,7 @@ function VanillaScreen() {
           <Grid height={70} width={39} />
         </View>
       </ScrollView>
-    </VanillaContainer>
+    </ReanimatedContainer>
   )
 }
 
@@ -29,4 +29,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default VanillaScreen
+export default ReanimatedScreen

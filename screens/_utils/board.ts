@@ -1,4 +1,4 @@
-import {Size} from '../_components/BoardContext'
+import {Size} from '../_components/BoardContext/plain'
 import {BoardState, memoizedGameTick, stringifyBoard} from './js/sparse-board/controls'
 
 const getBoardSizeKey = (board: BoardState, expectedDensity: number) =>

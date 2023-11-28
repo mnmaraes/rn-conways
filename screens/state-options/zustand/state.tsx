@@ -1,7 +1,7 @@
 import React from 'react'
 import {create} from 'zustand'
 import {BoardState, memoizedGameTick} from '../../_utils/js/sparse-board/controls'
-import {Size} from '../../_components/BoardContext'
+import {Size} from '../../_components/BoardContext/plain'
 import {findFirstStableState, getInitialBoardState} from '../../_utils/board'
 
 type BoardStoreState = {

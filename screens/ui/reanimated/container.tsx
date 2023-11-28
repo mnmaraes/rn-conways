@@ -1,15 +1,19 @@
 import React from 'react'
-import {BoardContainer, Size} from '../_components/BoardContext/plain'
+import {SharedValue, useSharedValue} from 'react-native-reanimated'
+import {BoardContainer, SerializableBoardState, Size} from '../../_components/BoardContext/reanimated'
+import {memoizedGameTick} from '../../_utils/js/sparse-board/controls'
+import {findFirstStableState, getInitialBoardState} from '../../_utils/board'
 
-import {BoardState, memoizedGameTick} from '../_utils/js/sparse-board/controls'
-import {findFirstStableState, getInitialBoardState, getNewBoardStateAfterResize} from '../_utils/board'
+function tick(boardState: SharedValue<SerializableBoardState | null>) {
+  'worklet'
+}
 
 type Props = Readonly<{
   children: React.ReactNode
 }>
-export function VanillaContainer({children}: Props) {
+export function ReanimatedContainer({children}: Props) {
   const [size, setSize] = React.useState<Size | null>(null)
-  const [boardState, setBoardState] = React.useState<BoardState | null>(null)
+  const boardState = useSharedValue<SerializableBoardState | null>(null)
 
   const lastTick = React.useRef<{time: number; tick: number; avg: number} | null>(null)
   const lastSize = React.useRef<Size | null>(null)
@@ -22,21 +26,30 @@ export function VanillaContainer({children}: Props) {
 
   // We want to measure the time between ticks
   React.useEffect(() => {
-    setInterval(() => {
-      setBoardState(state => {
-        if (state == null) {
-          return null
-        }
+    const interval = setInterval(() => {
+      'worklet'
+      if (boardState.value === null) {
+        return
+      }
 
-        return memoizedGameTick(state)
-      })
-      setGenNumber(i => i + 1)
-    }, 1)
-  }, [])
+      const state = memoizedGameTick({size: boardState.value.size, board: new Set(boardState.value.board)})
+
+      boardState.value = {
+        size: state.size,
+        board: [...state.board],
+      }
+      // setGenNumber(i => i + 1)
+    }, 1000 / 55) // Need to be careful here. If we set this too low, the app will freeze.
+    // 55 is the highest value that will work on Simulator. Device will work up to 120, but a lot of the initial frames will be dropped.
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [boardState])
 
   // Calculate the average time per generation
   React.useEffect(() => {
-    if (boardState == null || boardState.board.size === 0) {
+    if (boardState == null || boardState.value?.board.size === 0) {
       return
     }
 
@@ -72,20 +85,21 @@ export function VanillaContainer({children}: Props) {
 
       lastSize.current = newSize
 
-      if (boardState === null) {
+      if (boardState.value === null) {
         const newBoardState = getInitialBoardState(newSize)
 
         const {firstStableGen: stableGen, stablePerf: perf} = findFirstStableState(newBoardState) ?? {}
 
-        setBoardState(newBoardState)
+        boardState.value = {
+          size: newBoardState.size,
+          board: [...newBoardState.board],
+        }
         setFirstStableGen(stableGen ?? null)
         setStablePerf(perf ?? null)
         return
       }
 
-      setBoardState(state => {
-        return getNewBoardStateAfterResize(state!, newSize)
-      })
+      // boardState.value = getNewBoardStateAfterResize(boardState.value, newSize)
     },
     [boardState],
   )
@@ -102,17 +116,19 @@ export function VanillaContainer({children}: Props) {
     resetBoardSize(size)
   }, [size, resetBoardSize])
 
-  const contextValue = React.useMemo(() => {
+  const dashValues = React.useMemo(() => {
     return {
-      boardState: boardState ?? {size: [0, 0], board: new Set<number>()},
       timePerGen,
       lastTickPerf,
       genNumber,
       firstStableGen,
       stablePerf,
-      onSizeChanged,
     }
-  }, [boardState, firstStableGen, genNumber, lastTickPerf, onSizeChanged, stablePerf, timePerGen])
+  }, [firstStableGen, genNumber, lastTickPerf, stablePerf, timePerGen])
 
-  return <BoardContainer value={contextValue}>{children}</BoardContainer>
+  return (
+    <BoardContainer state={boardState} onSizeChanged={onSizeChanged} dashValues={dashValues}>
+      {children}
+    </BoardContainer>
+  )
 }

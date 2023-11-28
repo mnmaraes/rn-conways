@@ -1,7 +1,8 @@
 import {useLayout} from '@react-native-community/hooks'
 import React from 'react'
 import {Dimensions, StyleSheet, View} from 'react-native'
-import {useBoardContext} from '../../BoardContext/plain'
+import Animated, {useAnimatedStyle} from 'react-native-reanimated'
+import {useBoardState, useSizeControls} from '../../BoardContext/reanimated'
 
 const DEFAULT_SCALE = 10
 
@@ -25,7 +26,7 @@ export function Grid({width, height}: Props) {
   })
   const {width: layoutWidth, height: layoutHeight, onLayout} = useLayout()
 
-  const {boardState, onSizeChanged} = useBoardContext()
+  const {onSizeChanged} = useSizeControls()
 
   React.useEffect(() => {
     const defaults = getDefaults(layoutWidth, layoutHeight)
@@ -84,7 +85,7 @@ export function Grid({width, height}: Props) {
     return dynamicStyles
   }, [size, layoutWidth, layoutHeight])
 
-  if (boardState == null || boardState.board.size === 0) {
+  if (size.height === 0 || size.width === 0) {
     return null
   }
 
@@ -108,9 +109,17 @@ type CellProps = Readonly<{
 }>
 
 function Cell({position}: CellProps) {
-  const {boardState} = useBoardContext()
+  const {boardState} = useBoardState()
 
-  return <View style={boardState.board.has(position) ? styles.livingCell : styles.deadCell} />
+  const style = useAnimatedStyle(() => {
+    const isAlive = boardState.value?.board.includes(position) ?? false
+
+    return {
+      backgroundColor: isAlive ? 'black' : 'white',
+    }
+  })
+
+  return <Animated.View style={[styles.cell, style]} />
 }
 
 const styles = StyleSheet.create({
@@ -122,14 +131,7 @@ const styles = StyleSheet.create({
 
     flexDirection: 'row',
   },
-  livingCell: {
+  cell: {
     flex: 1,
-
-    backgroundColor: 'black',
-  },
-  deadCell: {
-    flex: 1,
-
-    backgroundColor: 'white',
   },
 })

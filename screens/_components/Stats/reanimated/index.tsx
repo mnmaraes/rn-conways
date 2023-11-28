@@ -2,14 +2,14 @@ import React from 'react'
 import {View, Text, StyleSheet} from 'react-native'
 import _ from 'lodash'
 import {formatDuration, intervalToDuration} from 'date-fns'
-import {useBoardContext} from '../../BoardContext/plain'
+import {useDashboardValues} from '../../BoardContext/reanimated'
 
 export function Stats() {
-  const {boardState, timePerGen, lastTickPerf, genNumber, firstStableGen, stablePerf} = useBoardContext()
+  const {timePerGen, lastTickPerf, genNumber, firstStableGen, stablePerf} = useDashboardValues()
 
   return (
     <View style={styles.container}>
-      <Stat label="Size" value={`${boardState.size[0]}x${boardState.size[1]}`} />
+      {/* <Stat label="Size" value={`${boardState.size[0]}x${boardState.size[1]}`} /> */}
       <Stat label="gen/s (avg)" value={1000 / timePerGen} />
       <Stat label="gen/s (last)" value={1000 / lastTickPerf} />
       <Stat label="gen. #" value={genNumber} />

@@ -1,5 +1,5 @@
 import React from 'react'
-import {BoardState} from '../_utils/js/sparse-board/controls'
+import {BoardState} from '../../../_utils/js/sparse-board/controls'
 
 export type Size = {
   width: number
